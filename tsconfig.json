@@ -15,6 +15,6 @@
     "removeComments": true,
     "noEmitOnError": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "src/handlers/api-generate-presigned-url.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

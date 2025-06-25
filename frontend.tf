@@ -1,13 +1,6 @@
-# Random suffix for unique naming
-resource "random_string" "suffix" {
-  length  = 8
-  special = false
-  upper   = false
-}
-
 # S3 Bucket for Frontend
 resource "aws_s3_bucket" "frontend" {
-  bucket = "${var.project_name}-${var.environment}-${random_string.suffix.result}"
+  bucket = "${var.project_name}-${var.environment}-app"
 }
 
 # S3 Bucket Website Configuration

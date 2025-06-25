@@ -235,6 +235,23 @@ resource "aws_lambda_function" "delete_product" {
   }
 }
 
+resource "aws_lambda_function" "generate_presigned_url" {
+  filename         = "handlers.zip"
+  function_name    = "${var.project_name}-generate-presigned-url-${var.environment}"
+  role            = aws_iam_role.lambda_role.arn
+  handler         = "api-generate-presigned-url.handler"
+  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
+  runtime         = "nodejs18.x"
+  timeout         = 30
+
+  environment {
+    variables = {
+      DYNAMODB_TABLE = aws_dynamodb_table.products.name
+      S3_BUCKET      = aws_s3_bucket.images.bucket
+    }
+  }
+}
+
 # Create Lambda deployment package
 data "archive_file" "lambda_zip" {
   type        = "zip"
@@ -265,6 +282,13 @@ resource "aws_api_gateway_resource" "product_id" {
   rest_api_id = aws_api_gateway_rest_api.products_api.id
   parent_id   = aws_api_gateway_resource.products.id
   path_part   = "{id}"
+}
+
+# /products/upload resource - for generating presigned URLs
+resource "aws_api_gateway_resource" "upload" {
+  rest_api_id = aws_api_gateway_rest_api.products_api.id
+  parent_id   = aws_api_gateway_resource.products.id
+  path_part   = "upload"
 }
 
 # CORS OPTIONS method for /products
@@ -308,6 +332,51 @@ resource "aws_api_gateway_integration_response" "products_options" {
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
     "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+
+# CORS OPTIONS method for /products/upload
+resource "aws_api_gateway_method" "upload_options" {
+  rest_api_id   = aws_api_gateway_rest_api.products_api.id
+  resource_id   = aws_api_gateway_resource.upload.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "upload_options" {
+  rest_api_id = aws_api_gateway_rest_api.products_api.id
+  resource_id = aws_api_gateway_resource.upload.id
+  http_method = aws_api_gateway_method.upload_options.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "upload_options" {
+  rest_api_id = aws_api_gateway_rest_api.products_api.id
+  resource_id = aws_api_gateway_resource.upload.id
+  http_method = aws_api_gateway_method.upload_options.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "upload_options" {
+  rest_api_id = aws_api_gateway_rest_api.products_api.id
+  resource_id = aws_api_gateway_resource.upload.id
+  http_method = aws_api_gateway_method.upload_options.http_method
+  status_code = aws_api_gateway_method_response.upload_options.status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
     "method.response.header.Access-Control-Allow-Origin"  = "'*'"
   }
 }
@@ -390,6 +459,23 @@ resource "aws_api_gateway_integration" "list_products" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = aws_lambda_function.list_products.invoke_arn
+}
+
+# PRESIGNED URL (POST /products/upload) - Generate presigned URL for image upload
+resource "aws_api_gateway_method" "generate_presigned_url" {
+  rest_api_id   = aws_api_gateway_rest_api.products_api.id
+  resource_id   = aws_api_gateway_resource.upload.id
+  http_method   = "POST"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "generate_presigned_url" {
+  rest_api_id             = aws_api_gateway_rest_api.products_api.id
+  resource_id             = aws_api_gateway_resource.upload.id
+  http_method             = aws_api_gateway_method.generate_presigned_url.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.generate_presigned_url.invoke_arn
 }
 
 # READ (GET /products/{id}) - Get specific product
@@ -484,6 +570,14 @@ resource "aws_lambda_permission" "delete_product" {
   source_arn    = "${aws_api_gateway_rest_api.products_api.execution_arn}/*/*"
 }
 
+resource "aws_lambda_permission" "generate_presigned_url" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.generate_presigned_url.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.products_api.execution_arn}/*/*"
+}
+
 # API Gateway Deployment
 resource "aws_api_gateway_deployment" "products_api" {
   depends_on = [
@@ -492,8 +586,10 @@ resource "aws_api_gateway_deployment" "products_api" {
     aws_api_gateway_integration.list_products,
     aws_api_gateway_integration.update_product,
     aws_api_gateway_integration.delete_product,
+    aws_api_gateway_integration.generate_presigned_url,
     aws_api_gateway_integration.products_options,
     aws_api_gateway_integration.product_options,
+    aws_api_gateway_integration.upload_options,
   ]
 
   rest_api_id = aws_api_gateway_rest_api.products_api.id
