@@ -43,6 +43,35 @@ resource "aws_s3_bucket" "images" {
   bucket = "${var.project_name}-images-${var.environment}-${random_string.suffix_image.result}"
 }
 
+# Allow public access for images (read-only)
+resource "aws_s3_bucket_public_access_block" "images" {
+  bucket = aws_s3_bucket.images.id
+
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+# Bucket policy to allow public read access
+resource "aws_s3_bucket_policy" "images" {
+  bucket = aws_s3_bucket.images.id
+  depends_on = [aws_s3_bucket_public_access_block.images]
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "PublicReadGetObject"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.images.arn}/*"
+      },
+    ]
+  })
+}
+
 resource "aws_s3_bucket_versioning" "images" {
   bucket = aws_s3_bucket.images.id
   versioning_configuration {
@@ -256,7 +285,7 @@ resource "aws_lambda_function" "generate_presigned_url" {
 data "archive_file" "lambda_zip" {
   type        = "zip"
   output_path = "handlers.zip"
-  source_dir  = "${path.module}/src/dist/handlers"
+  source_dir  = "${path.module}/dist/handlers"
 }
 
 # API Gateway
@@ -611,6 +640,46 @@ output "api_gateway_url" {
 output "s3_bucket_name" {
   description = "Name of the S3 bucket for images"
   value       = aws_s3_bucket.images.bucket
+}
+
+output "s3_bucket_arn" {
+  description = "ARN of the S3 bucket for images"
+  value       = aws_s3_bucket.images.arn
+}
+
+output "s3_bucket_domain_name" {
+  description = "Domain name of the S3 bucket for images"
+  value       = aws_s3_bucket.images.bucket_domain_name
+}
+
+output "s3_bucket_regional_domain_name" {
+  description = "Regional domain name of the S3 bucket for images"
+  value       = aws_s3_bucket.images.bucket_regional_domain_name
+}
+
+output "s3_bucket_website_endpoint" {
+  description = "Website endpoint of the S3 bucket for images"
+  value       = aws_s3_bucket.images.website_endpoint
+}
+
+output "frontend_bucket_name" {
+  description = "Name of the S3 bucket for frontend"
+  value       = aws_s3_bucket.frontend.bucket
+}
+
+output "frontend_bucket_arn" {
+  description = "ARN of the S3 bucket for frontend"
+  value       = aws_s3_bucket.frontend.arn
+}
+
+output "frontend_bucket_website_endpoint" {
+  description = "Website endpoint of the S3 bucket for frontend"
+  value       = aws_s3_bucket.frontend.website_endpoint
+}
+
+output "frontend_bucket_website_domain" {
+  description = "Website domain of the S3 bucket for frontend"
+  value       = aws_s3_bucket.frontend.website_domain
 }
 
 output "dynamodb_table_name" {

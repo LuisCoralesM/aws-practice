@@ -150,7 +150,7 @@ export const CreateProduct: React.FC = () => {
 
           {/* Submit Button */}
           <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
-            <Link to="/" className="btn btn-secondary" disabled={isSubmitting}>
+            <Link to="/" className="btn btn-secondary">
               Cancel
             </Link>
             <button type="submit" disabled={isSubmitting} className="btn btn-primary flex items-center space-x-2">

@@ -7,8 +7,7 @@ import {
 } from "../types/product";
 
 // You'll need to replace this with your actual API Gateway URL
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "https://your-api-gateway-url.execute-api.us-east-1.amazonaws.com/dev";
+const API_BASE_URL = "https://grpbq5cuud.execute-api.us-east-1.amazonaws.com/dev";
 
 class ApiService {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {

@@ -3,18 +3,19 @@
   "version": "1.0.0",
   "main": "dist/index.js",
   "scripts": {
-    "build": "npm run clean && npm run compile && npm run copy-deps",
-    "build:frontend": "npm run build:frontend:clean && npm run build:frontend:compile",
+    "build": "node build.js",
+    "build:dep": "yarn run clean && yarn run compile && yarn run copy-deps",
+    "build:frontend": "yarn run build:frontend:clean && yarn run build:frontend:compile",
     "build:frontend:clean": "rm -rf frontend/dist",
-    "build:frontend:compile": "mkdir -p frontend/dist && cp -r frontend/src/* frontend/dist/",
+    "build:frontend:compile": "cd frontend && yarn build",
     "clean": "rm -rf dist",
     "compile": "tsc",
-    "copy-deps": "cp package.json dist/ && cd dist && npm install --production --silent",
+    "copy-deps": "cp package.json dist/ && cd dist && yarn install --production --silent",
     "dev": "tsc --watch",
     "lint": "eslint src/**/*.ts",
     "test": "jest",
-    "deploy": "yarn compile && terraform apply -auto-approve",
-    "deploy:frontend": "npm run build:frontend && aws s3 sync frontend/dist/ s3://$(terraform output -raw s3_bucket_name) --delete",
+    "deploy": "yarn build && terraform apply -auto-approve",
+    "deploy:frontend": "node deploy-frontend.js",
     "destroy": "terraform destroy"
   },
   "dependencies": {
@@ -22,7 +23,8 @@
     "@aws-sdk/client-s3": "^3.835.0",
     "@aws-sdk/lib-dynamodb": "^3.835.0",
     "@aws-sdk/s3-request-presigner": "^3.835.0",
-    "@types/aws-lambda": "^8.10.134"
+    "@types/aws-lambda": "^8.10.134",
+    "esbuild": "^0.25.5"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
