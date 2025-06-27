@@ -6,7 +6,9 @@ try {
   console.log("🚀 Deploying frontend to S3...");
 
   const bucketName = execSync("terraform output -raw frontend_bucket_name", { encoding: "utf8" }).trim();
-  const apiUrl = execSync("terraform output -raw api_gateway_url", { encoding: "utf8" }).trim();
+  const apiUrl =
+    execSync("terraform output -raw api_gateway_url", { encoding: "utf8" }).trim() +
+    execSync("terraform output -raw environment", { encoding: "utf8" }).trim();
 
   console.log(`📦 Bucket name: ${bucketName}`);
   console.log(`🔗 API URL: ${apiUrl}`);

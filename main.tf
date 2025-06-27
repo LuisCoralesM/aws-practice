@@ -251,7 +251,7 @@ resource "aws_lambda_function" "delete_product" {
   filename         = "handlers.zip"
   function_name    = "${var.project_name}-delete-product-${var.environment}"
   role            = aws_iam_role.lambda_role.arn
-  handler         = "api-delete-product.ts"
+  handler         = "api-delete-product.handler"
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
   runtime         = "nodejs18.x"
   timeout         = 30
@@ -685,4 +685,9 @@ output "frontend_bucket_website_domain" {
 output "dynamodb_table_name" {
   description = "Name of the DynamoDB table"
   value       = aws_dynamodb_table.products.name
+}
+
+output "environment" {
+  description = "Name of the DynamoDB table"
+  value       = var.environment
 }
